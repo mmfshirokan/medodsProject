@@ -1,5 +1,0 @@
-CREATE TABLE medose.user { 
-    id uuid NOT NULL PRIMARY KEY,
-    name CHARACTER VARYING(30) NOT NULL,
-    age INTEGER NOT NULL 
-};

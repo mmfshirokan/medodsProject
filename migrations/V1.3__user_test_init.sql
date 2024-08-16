@@ -1,0 +1,1 @@
+INSERT INTO medods.user (id, male, ip) VALUES (gen_random_uuid(), 'test1', 1)
