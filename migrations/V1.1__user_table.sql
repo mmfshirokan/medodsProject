@@ -1,5 +1,6 @@
 CREATE TABLE medods.user { 
     id uuid PRIMARY KEY,
+    ip inet UNIQUE NOT NULL,
     emale CHARACTER VARYING(100) UNIQUE NOT NULL,
-    ip inet NOT NULL
+    password CHARACTER VARYING(100) NOT NULL
 };

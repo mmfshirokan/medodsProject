@@ -1,13 +1,13 @@
 package model
 
 import (
-	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
 )
 
 type User struct {
-	ID    uuid.UUID `validate:"uuid"`
-	IP    string    `validate:"ipv4"`
-	Email string    `validate:"email"`
-	jwt.RegisteredClaims
+	ID       uuid.UUID `json:"id" validate:"uuid"`
+	IP       string    `json:"ip" validate:"ipv4"`
+	Name     string    `json:"name" validate:"lte=100"`
+	Email    string    `json:"email" validate:"email"`
+	Password string    `json:"password"`
 }

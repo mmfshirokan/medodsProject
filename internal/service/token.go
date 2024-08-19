@@ -4,12 +4,17 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
 	"github.com/mmfshirokan/medodsProject/internal/model"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/bcrypt"
+)
+
+var (
+	ErrRftTokeExpired = errors.New("refresh token expired")
 )
 
 const (
@@ -20,9 +25,12 @@ const (
 )
 
 type Repository interface {
-	Add(ctx context.Context, rft string) error
+	Add(ctx context.Context, rftEncoded string) error
 	GetWithUserID(ctx context.Context, id uuid.UUID) ([]string, error)
-	Delete(ctx context.Context, id uuid.UUID) error
+	Delete(ctx context.Context, rftID uuid.UUID) error
+	ValidateRFT(ctx context.Context, rftID uuid.UUID, hash string) (bool, error)
+
+	ValidatePWD(ctx context.Context, id uuid.UUID, pwd string) (bool, error)
 }
 
 type Service struct {
@@ -44,7 +52,7 @@ func (s *Service) Add(ctx context.Context, refreshToken string) (hRFT string, er
 		return "", err
 	}
 
-	hash, err := Hashing(rft, rftKey)
+	hash, err := hashing(rft, rftKey)
 	if err != nil {
 		log.Info("Hashing error In service (Add): ", err)
 		return "", err
@@ -63,18 +71,26 @@ func (s *Service) Add(ctx context.Context, refreshToken string) (hRFT string, er
 	return hRFT, err
 }
 
-// Gets refresh tokens with user ID. No additional logic implemented.
 func (s *Service) Get(ctx context.Context, userID uuid.UUID) ([]string, error) {
 	return s.rp.GetWithUserID(ctx, userID)
 }
 
-// Deletes refresh tokens with user ID. No additional logic implemented.
 func (s *Service) Delete(ctx context.Context, id uuid.UUID) error {
 	return s.rp.Delete(ctx, id)
 }
 
-func Auth(usr model.User) (string, error) {
-	tkn := jwt.NewWithClaims(jwt.SigningMethodHS512, &usr)
+// TODO: add custom error handling for ValidateRFT
+func (s *Service) ValidateRFT(ctx context.Context, rftID uuid.UUID, hash string) (bool, error) {
+	return s.ValidateRFT(ctx, rftID, hash)
+}
+
+// TODO: add password hashing
+func (s *Service) ValidatePWD(ctx context.Context, id uuid.UUID, pwd string) (bool, error) {
+	return s.rp.ValidatePWD(ctx, id, pwd)
+}
+
+func NewAuth(ath model.Auth) (string, error) {
+	tkn := jwt.NewWithClaims(jwt.SigningMethodHS512, &ath)
 	res, err := tkn.SignedString([]byte(athKey))
 	if err != nil {
 		return "", err
@@ -82,6 +98,7 @@ func Auth(usr model.User) (string, error) {
 
 	return res, nil
 }
+
 func Encode(rft model.RefreshToken) (string, error) {
 	json, err := json.Marshal(rft)
 	if err != nil {
@@ -104,9 +121,19 @@ func Decode(s string) (model.RefreshToken, error) {
 
 	return rs, nil
 }
-func Hashing(rft model.RefreshToken, key string) ([]byte, error) {
+
+func hashing(rft model.RefreshToken, key string) ([]byte, error) {
 	return bcrypt.GenerateFromPassword(
 		[]byte(rft.UserID.String()+rft.ID.String()+key),
 		bcrypt.MaxCost,
 	)
 }
+
+// Uncoment in future:
+
+// func pwdHashing(pwd string) ([]byte, error) {
+// 	return bcrypt.GenerateFromPassword(
+// 		[]byte(pwd),
+// 		bcrypt.MaxCost,
+// 	)
+// }

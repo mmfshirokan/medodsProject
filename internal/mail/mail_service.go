@@ -1,17 +1,13 @@
 package mail
 
-type MailService interface {
-	SendMail(mail string) error
-}
-
 // Returns Mock for MailService
-func New() MailService {
-	return &ms{}
+func New() *Ms {
+	return &Ms{}
 }
 
-type ms struct {
+type Ms struct {
 }
 
-func (m *ms) SendMail(mail string) error {
+func (m *Ms) SendMail(mail string) error {
 	return nil
 }
