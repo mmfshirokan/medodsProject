@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"github.com/mmfshirokan/medodsProject/internal/model"
@@ -16,11 +16,10 @@ import (
 )
 
 type Service interface {
-	Add(ctx context.Context, refreshToken string) (string, error)
-	// Get(ctx context.Context, id uuid.UUID) ([]string, error)
+	Add(ctx context.Context, rft model.RefreshToken) (model.RefreshToken, error)
 	Delete(ctx context.Context, rftID uuid.UUID) error
-	ValidatePWD(ctx context.Context, usrID uuid.UUID, pwd string) (valid bool)
-	ValidateRFT(ctx context.Context, rftID uuid.UUID, rft string) (bool, error)
+	ValidatePWD(ctx context.Context, usrID uuid.UUID, pwd string) (bool, error)
+	ValidateRFT(ctx context.Context, rftID uuid.UUID) (bool, error)
 }
 
 type MaleService interface {
@@ -40,7 +39,7 @@ func New(srv Service, ms MaleService) *Token {
 }
 
 func (t *Token) SignIN(c echo.Context) error {
-	var usr model.User
+	var usr model.ReqUser
 	ctx := c.Request().Context()
 
 	err := c.Bind(&usr)
@@ -55,11 +54,12 @@ func (t *Token) SignIN(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
 
-	if !(t.srv.ValidatePWD(
-		ctx,
-		usr.ID,
-		usr.Password,
-	)) {
+	val, err := t.srv.ValidatePWD(ctx, usr.ID, usr.Password)
+	if err != nil {
+		log.Error("validation error occurred at handlers.SignIn: nvalid credentials")
+		return echo.NewHTTPError(http.StatusUnauthorized, "invalid credentials")
+	}
+	if !(val) {
 		log.Error("invalid credentials at handlers.SignUp")
 		return echo.NewHTTPError(http.StatusUnauthorized, "invalid credentials")
 	}
@@ -80,17 +80,11 @@ func (t *Token) SignIN(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
 
-	rftEnc, err := service.Encode(model.RefreshToken{
+	rft, err := t.srv.Add(ctx, model.RefreshToken{
 		ID:         rftID,
 		UserID:     usr.ID,
 		Expiration: time.Now().Add(time.Hour * service.RFTLifeTime),
 	})
-	if err != nil {
-		log.Error("service.Encode error at handlers.SignUp: ", err)
-		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
-	}
-
-	rftEnc, err = t.srv.Add(ctx, rftEnc)
 	if err != nil {
 		log.Error("service.Add error at handlers.SignUp: ", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
@@ -98,7 +92,7 @@ func (t *Token) SignIN(c echo.Context) error {
 
 	err = c.JSON(http.StatusOK, echo.Map{
 		"token":   auth,
-		"refresh": rftEnc,
+		"refresh": rft.Hash,
 	})
 	if err != nil {
 		log.Error("c.JSON error at handlers.SignUp: ", err)
@@ -133,15 +127,9 @@ func (t *Token) Refresh(c echo.Context) error {
 	}
 
 	athPrs := new(model.Auth)
-	_, err = jwt.ParseWithClaims(ath, athPrs, func(t *jwt.Token) (interface{}, error) {
-		return nil, nil
-	})
-	if err != nil {
-		log.Error("jwt.ParseWithClaims error at handlers.Refresh: ", err)
-		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
-	}
+	jwt.ParseWithClaims(ath, athPrs, nil)
 
-	v, err := t.srv.ValidateRFT(ctx, rft.ID, rft.Hash)
+	v, err := t.srv.ValidateRFT(ctx, rft.ID)
 	if errors.Is(err, service.ErrRftTokeExpired) {
 		log.Error("service.ValidateRFT error at handlers.Refresh: ", err)
 
@@ -190,17 +178,11 @@ func (t *Token) Refresh(c echo.Context) error {
 
 	rftID := uuid.New()
 
-	rftEnc, err := service.Encode(model.RefreshToken{
+	rftH, err := t.srv.Add(ctx, model.RefreshToken{
 		ID:         rftID,
 		UserID:     rft.UserID,
 		Expiration: time.Now().Add(time.Hour * service.RFTLifeTime),
 	})
-	if err != nil {
-		log.Error("service.Encode error at handlers.SignUp: ", err)
-		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
-	}
-
-	rftEnc, err = t.srv.Add(ctx, rftEnc)
 	if err != nil {
 		log.Error("service.Add error at handlers.SignUp: ", err)
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
@@ -208,7 +190,7 @@ func (t *Token) Refresh(c echo.Context) error {
 
 	err = c.JSON(http.StatusOK, echo.Map{
 		"token":   auth,
-		"refresh": rftEnc,
+		"refresh": rftH.Hash,
 	})
 	if err != nil {
 		log.Error("c.JSON error at handlers.SignUp: ", err)
@@ -218,4 +200,8 @@ func (t *Token) Refresh(c echo.Context) error {
 	c.Set(rft.UserID.String()+rftID.String(), auth)
 
 	return nil
+}
+
+func (t *Token) Get(c echo.Context) error {
+	return c.String(http.StatusOK, "This is unimplimented mock function, for tesing correctnes of authorization:)")
 }
