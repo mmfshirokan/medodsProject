@@ -1,9 +1,6 @@
 package main
 
 import (
-	"context"
-
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/labstack/echo/v4"
 	"github.com/mmfshirokan/medodsProject/internal/config"
 	"github.com/mmfshirokan/medodsProject/internal/handlers"
@@ -11,19 +8,20 @@ import (
 	"github.com/mmfshirokan/medodsProject/internal/repository"
 	"github.com/mmfshirokan/medodsProject/internal/service"
 	log "github.com/sirupsen/logrus"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 )
 
 func main() {
 	defer unexpectedBehaviorHandler()
 
-	ctx := context.Background()
 	cnf, err := config.New()
 	if err != nil {
 		log.Error("Unexpected config error in main: ", err)
 		return
 	}
 
-	conn, err := pgxpool.New(ctx, cnf.PostgresURL)
+	conn, err := gorm.Open(postgres.Open(cnf.PostgresURL)) // &gorm.Config{}
 	if err != nil {
 		log.Error("Pgx pool onnection error:", err)
 		return

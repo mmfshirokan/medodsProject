@@ -218,19 +218,6 @@ func TestRefresh(t *testing.T) {
 		adCall.Unset()
 		dlCall.Unset()
 		msCall.Unset()
-
-		// ValidatePWD(ctx, test.user.ID, test.user.Password).Return(test.pwCorrect, test.pwErr)
-		// addCall := sr.EXPECT().Add(ctx, mock.Anything).Return(model.RefreshToken{
-		// 	ID:         uuid.MustParse(rftID[0]),
-		// 	UserID:     uuid.MustParse(usrID[0]),
-		// 	Hash:       "hash1",
-		// 	Expiration: time.Now().Add(time.Hour),
-		// }, test.addErr).Maybe()
-
-		// hnd.SignIN(c)
-		// sr.AssertExpectations(t)
-		// vpCall.Unset()
-		// addCall.Unset()
 	}
 }
 

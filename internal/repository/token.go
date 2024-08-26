@@ -2,24 +2,24 @@ package repository
 
 import (
 	"context"
-	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/mmfshirokan/medodsProject/internal/model"
-	"github.com/mmfshirokan/medodsProject/internal/service"
+	"gorm.io/gorm"
 )
 
 type Postgres struct {
-	conn *pgxpool.Pool
+	db *gorm.DB
 }
 
-func New(conn *pgxpool.Pool) *Postgres {
-	return &Postgres{conn: conn}
+func New(db *gorm.DB) *Postgres {
+	return &Postgres{
+		db: db,
+	}
 }
 
-func (p *Postgres) Add(ctx context.Context, rft model.RefreshToken) error {
-	_, err := p.conn.Exec(ctx, "INSERT INTO medods.refresh_token(id, user_id, hash, expiration) VALUES($1, $2, $3, $4)", rft.ID, rft.UserID, rft.Hash, rft.Expiration)
+func (p *Postgres) Add(ctx context.Context, token model.RefreshToken) error {
+	err := p.db.Create(&token).Error
 	if err != nil {
 		return err
 	}
@@ -27,30 +27,18 @@ func (p *Postgres) Add(ctx context.Context, rft model.RefreshToken) error {
 	return nil
 }
 
-func (p *Postgres) GetWithUserID(ctx context.Context, id uuid.UUID) ([]model.RefreshToken, error) {
-	var res []model.RefreshToken
-
-	rows, err := p.conn.Query(ctx, "SELECT (id, user_id, hash, expiration) FROM medods.refresh_token WHERE user_id = $1", id)
+func (p *Postgres) GetWithUserID(ctx context.Context, userID uuid.UUID) ([]model.RefreshToken, error) {
+	var tokens []model.RefreshToken
+	err := p.db.Find(&tokens, "user_id = ?", userID).Error
 	if err != nil {
 		return nil, err
 	}
 
-	var rft model.RefreshToken
-
-	for rows.Next() {
-		err = rows.Scan(&rft)
-		if err != nil {
-			return nil, err
-		}
-
-		res = append(res, rft)
-	}
-
-	return res, nil
+	return tokens, nil
 }
 
 func (p *Postgres) Delete(ctx context.Context, id uuid.UUID) error {
-	_, err := p.conn.Exec(ctx, "DELETE FROM medods.refresh_token WHERE id = $1", id)
+	err := p.db.Delete(&model.RefreshToken{}, "id = ?", id).Error
 	if err != nil {
 		return err
 	}
@@ -59,19 +47,11 @@ func (p *Postgres) Delete(ctx context.Context, id uuid.UUID) error {
 }
 
 func (p *Postgres) GetHash(ctx context.Context, rftID uuid.UUID) (string, error) {
-	var (
-		uHash string
-		exp   time.Time
-	)
-
-	err := p.conn.QueryRow(ctx, "SELECT hash, expiration FROM medods.refresh_token WHERE id = $1", rftID).Scan(&uHash, &exp)
+	var rft model.RefreshToken
+	err := p.db.First(&model.RefreshToken{}, "id = ?", rftID).Error
 	if err != nil {
 		return "", err
 	}
 
-	if exp.Before(time.Now().UTC()) {
-		return "", service.ErrRftTokeExpired
-	}
-
-	return uHash, nil
+	return rft.Hash, nil
 }

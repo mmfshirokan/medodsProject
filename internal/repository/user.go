@@ -7,9 +7,8 @@ import (
 	"github.com/mmfshirokan/medodsProject/internal/model"
 )
 
-// For Testing purposes
 func (p *Postgres) AddUsr(ctx context.Context, usr model.User) error {
-	_, err := p.conn.Exec(ctx, "INSERT INTO medods.user (id, ip, name, email, password) VALUES ($1, $2, $3, $4, $5)", usr.ID, usr.IP, usr.Name, usr.Email, usr.Password)
+	err := p.db.Create(&usr).Error
 	if err != nil {
 		return err
 	}
@@ -18,11 +17,11 @@ func (p *Postgres) AddUsr(ctx context.Context, usr model.User) error {
 }
 
 func (p *Postgres) GetPwd(ctx context.Context, uid uuid.UUID) (string, error) {
-	var pwd string
-	err := p.conn.QueryRow(ctx, "SELECT password FROM medods.user WHERE id = $1", uid).Scan(&pwd)
+	var usr model.User
+	err := p.db.First(&usr, "id = ?", uid).Error
 	if err != nil {
 		return "", err
 	}
 
-	return pwd, nil
+	return usr.Password, nil
 }
