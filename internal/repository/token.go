@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/mmfshirokan/medodsProject/internal/model"
 	"github.com/mmfshirokan/medodsProject/internal/service"
@@ -29,20 +30,12 @@ func (p *Postgres) Add(ctx context.Context, rft model.RefreshToken) error {
 
 func (p *Postgres) GetWithUserID(ctx context.Context, id uuid.UUID) ([]model.RefreshToken, error) {
 	var res []model.RefreshToken
-
 	rows, err := p.conn.Query(ctx, "SELECT (id, user_id, hash, expiration) FROM medods.refresh_token WHERE user_id = $1", id)
 	if err != nil {
 		return nil, err
 	}
 
-	var rft model.RefreshToken
-
-	for rows.Next() {
-		err = rows.Scan(&rft)
-		if err != nil {
-			return nil, err
-		}
-
+	for _, rft := range customPgxHandler(rows) {
 		res = append(res, rft)
 	}
 
@@ -74,4 +67,19 @@ func (p *Postgres) GetHash(ctx context.Context, rftID uuid.UUID) (string, error)
 	}
 
 	return uHash, nil
+}
+
+func customPgxHandler(rows pgx.Rows) func(func(int, model.RefreshToken) bool) {
+	return func(yeild func(i int, rft model.RefreshToken) bool) {
+		var i int
+		for rows.Next() {
+			var rft model.RefreshToken
+			if err := rows.Scan(&rft); err != nil {
+				return
+			}
+
+			yeild(i, rft)
+			i++
+		}
+	}
 }
