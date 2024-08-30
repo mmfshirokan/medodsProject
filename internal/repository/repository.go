@@ -18,6 +18,15 @@ func New(db *gorm.DB) *Postgres {
 	}
 }
 
+func (p *Postgres) Migrate(ctx context.Context) error {
+	err := p.db.AutoMigrate(&model.RefreshToken{}, &model.User{})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (p *Postgres) Add(ctx context.Context, token model.RefreshToken) error {
 	err := p.db.Create(&token).Error
 	if err != nil {
@@ -48,10 +57,29 @@ func (p *Postgres) Delete(ctx context.Context, id uuid.UUID) error {
 
 func (p *Postgres) GetHash(ctx context.Context, rftID uuid.UUID) (string, error) {
 	var rft model.RefreshToken
-	err := p.db.First(&model.RefreshToken{}, "id = ?", rftID).Error
+	err := p.db.First(&rft, "id = ?", rftID).Error
 	if err != nil {
 		return "", err
 	}
 
 	return rft.Hash, nil
+}
+
+func (p *Postgres) AddUsr(ctx context.Context, usr model.User) error {
+	err := p.db.Create(&usr).Error
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (p *Postgres) GetPwd(ctx context.Context, uid uuid.UUID) (string, error) {
+	var usr model.User
+	err := p.db.First(&usr, "id = ?", uid).Error
+	if err != nil {
+		return "", err
+	}
+
+	return usr.Password, nil
 }

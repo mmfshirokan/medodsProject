@@ -1,21 +1,20 @@
 module github.com/mmfshirokan/medodsProject
 
-go 1.22
-
-toolchain go1.22.6
+go 1.23
 
 require (
 	github.com/caarlos0/env/v11 v11.2.2
 	github.com/go-playground/validator/v10 v10.22.0
 	github.com/golang-jwt/jwt/v5 v5.0.0
 	github.com/google/uuid v1.6.0
-	github.com/jackc/pgx/v5 v5.6.0
 	github.com/labstack/echo-jwt/v4 v4.2.0
 	github.com/labstack/echo/v4 v4.12.0
 	github.com/ory/dockertest/v3 v3.11.0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.9.0
 	golang.org/x/crypto v0.22.0
+	gorm.io/driver/postgres v1.5.9
+	gorm.io/gorm v1.25.11
 )
 
 require (
@@ -38,6 +37,7 @@ require (
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20221227161230-091c0ba34f0a // indirect
+	github.com/jackc/pgx/v5 v5.6.0 // indirect
 	github.com/jackc/puddle/v2 v2.2.1 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
@@ -68,6 +68,4 @@ require (
 	golang.org/x/time v0.5.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	gorm.io/driver/postgres v1.5.9 // indirect
-	gorm.io/gorm v1.25.11 // indirect
 )

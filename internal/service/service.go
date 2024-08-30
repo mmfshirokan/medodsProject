@@ -5,13 +5,13 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	echojwt "github.com/labstack/echo-jwt/v4"
 	"github.com/labstack/echo/v4"
 	"github.com/mmfshirokan/medodsProject/internal/model"
-	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -48,7 +48,6 @@ func New(repository Repository) *Service {
 }
 
 func NewMiddleWare() echo.MiddlewareFunc {
-	// Change to echojwt.JWT for readability purpose?
 	return echojwt.WithConfig(echojwt.Config{
 		NewClaimsFunc: func(c echo.Context) jwt.Claims {
 			return new(model.Auth)
@@ -62,8 +61,7 @@ func NewMiddleWare() echo.MiddlewareFunc {
 func (s *Service) Add(ctx context.Context, rft model.RefreshToken) (model.RefreshToken, error) {
 	hash, err := bcrypt.GenerateFromPassword(returnRftHashKey(rft.ID.String()), bcrypt.MinCost)
 	if err != nil {
-		log.Info("Hashing error In service (Add): ", err)
-		return model.RefreshToken{}, err
+		return model.RefreshToken{}, fmt.Errorf("Hashing error In service (Add): %w", err)
 	}
 
 	res := model.RefreshToken{
@@ -74,29 +72,39 @@ func (s *Service) Add(ctx context.Context, rft model.RefreshToken) (model.Refres
 	}
 	err = s.rp.Add(ctx, res)
 	if err != nil {
-		return model.RefreshToken{}, err
+		return model.RefreshToken{}, fmt.Errorf("Error In service (Add):repository -> service: %w", err)
 	}
 
 	return res, nil
 }
 
 func (s *Service) Get(ctx context.Context, userID uuid.UUID) ([]model.RefreshToken, error) {
-	return s.rp.GetWithUserID(ctx, userID)
+	res, err := s.rp.GetWithUserID(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("Error In service (Get):repository -> service: %w", err)
+	}
+
+	return res, nil
 }
 
 func (s *Service) Delete(ctx context.Context, id uuid.UUID) error {
-	return s.rp.Delete(ctx, id)
+	err := s.rp.Delete(ctx, id)
+	if err != nil {
+		return fmt.Errorf("Error In service (Delete):repository -> service: %w", err)
+	}
+
+	return nil
 }
 
 func (s *Service) ValidateRFT(ctx context.Context, rftID uuid.UUID) (bool, error) {
 	hash, err := s.rp.GetHash(ctx, rftID)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("Error In service (ValidateRFT):repository -> service: %w", err)
 	}
 
 	err = bcrypt.CompareHashAndPassword([]byte(hash), returnRftHashKey(rftID.String()))
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("CompareHash error In service (Add): %w", err)
 	}
 
 	return true, nil
@@ -105,7 +113,7 @@ func (s *Service) ValidateRFT(ctx context.Context, rftID uuid.UUID) (bool, error
 func (s *Service) AddUsr(ctx context.Context, usr model.User) (model.User, error) {
 	hash, err := bcrypt.GenerateFromPassword(returnPwdHashKey(usr.Password), bcrypt.MinCost)
 	if err != nil {
-		return model.User{}, err
+		return model.User{}, fmt.Errorf("Hashing error In service (AddUsr): %w", err)
 	}
 
 	usr = model.User{
@@ -116,18 +124,23 @@ func (s *Service) AddUsr(ctx context.Context, usr model.User) (model.User, error
 		Password: string(hash),
 	}
 
-	return usr, s.rp.AddUsr(ctx, usr)
+	err = s.rp.AddUsr(ctx, usr)
+	if err != nil {
+		return model.User{}, fmt.Errorf("Error In service (AddUsr):repository -> service: %w", err)
+	}
+
+	return usr, nil
 }
 
 func (s *Service) ValidatePWD(ctx context.Context, id uuid.UUID, pwd string) (bool, error) {
 	hash, err := s.rp.GetPwd(ctx, id)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("Error In service (ValidatePWD):repository -> service: %w", err)
 	}
 
 	err = bcrypt.CompareHashAndPassword([]byte(hash), returnPwdHashKey(pwd))
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("CompareHash error In service (ValidatePWD): %w", err)
 	}
 
 	return true, nil
